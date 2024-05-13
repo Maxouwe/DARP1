@@ -1,1 +1,1 @@
-SELECT * FROM autompg WHERE brand = 'audi'
+SELECT * FROM qibrand

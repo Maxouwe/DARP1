@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\m_ver\\Desktop\\DARP1\\testDB\\testDB.csproj": {}
+    "C:\\Users\\m_ver\\Desktop\\DARP1\\Programma1\\Programma1\\Programma1.csproj": {}
   },
   "projects": {
-    "C:\\Users\\m_ver\\Desktop\\DARP1\\testDB\\testDB.csproj": {
+    "C:\\Users\\m_ver\\Desktop\\DARP1\\Programma1\\Programma1\\Programma1.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\m_ver\\Desktop\\DARP1\\testDB\\testDB.csproj",
-        "projectName": "testDB",
-        "projectPath": "C:\\Users\\m_ver\\Desktop\\DARP1\\testDB\\testDB.csproj",
+        "projectUniqueName": "C:\\Users\\m_ver\\Desktop\\DARP1\\Programma1\\Programma1\\Programma1.csproj",
+        "projectName": "Programma1",
+        "projectPath": "C:\\Users\\m_ver\\Desktop\\DARP1\\Programma1\\Programma1\\Programma1.csproj",
         "packagesPath": "C:\\Users\\m_ver\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\m_ver\\Desktop\\DARP1\\testDB\\obj\\",
+        "outputPath": "C:\\Users\\m_ver\\Desktop\\DARP1\\Programma1\\Programma1\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\m_ver\\AppData\\Roaming\\NuGet\\NuGet.Config",

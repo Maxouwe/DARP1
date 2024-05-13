@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "1cnPQeFJDEAqgPLv1wmnhXk74y7c41iF6DC6RVSH8d2OpknEcLyvbedDLLi+uaWlhSdm5aLAh7WEqf9UDpMupQ==",
+  "dgSpecHash": "qiVwksJ5Evy/C+3EqTCvKMBjcQo+z2PLzMIutb5kWIzgp2P1yb27cz2n6vPV6xDUq68M2qtisB85kFFul8TT+A==",
   "success": true,
-  "projectFilePath": "C:\\Users\\m_ver\\Desktop\\DARP1\\testDB\\testDB.csproj",
+  "projectFilePath": "C:\\Users\\m_ver\\Desktop\\DARP1\\Programma1\\Programma1\\Programma1.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\m_ver\\.nuget\\packages\\entityframework\\6.4.4\\entityframework.6.4.4.nupkg.sha512",
     "C:\\Users\\m_ver\\.nuget\\packages\\microsoft.csharp\\4.7.0\\microsoft.csharp.4.7.0.nupkg.sha512",

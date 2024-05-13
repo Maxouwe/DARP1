@@ -1,5 +1,6 @@
 ﻿using System.Data.SQLite;
 using System.IO;
+using System.Reflection.PortableExecutable;
 
 namespace testDB
 {
@@ -33,34 +34,51 @@ namespace testDB
             //and execute the sql statements from the text file
             command.ExecuteNonQuery();
 
+            
+            sqlStatements = File.ReadAllText(@"..\..\..\metadb.sql");
+            command.CommandText = sqlStatements;
+            command.ExecuteNonQuery();
+
 
             //now we do the same but with a select statement
+            command.CommandText = File.ReadAllText(@"..\..\..\metaload.sql");
+            command.ExecuteNonQuery();
+
             command.CommandText = File.ReadAllText(@"..\..\..\testquery.sql");
 
             //make a reader that will read the db and retrieve the tuples we asked for
             //de using statment zorgt dat zodra we uit de scope van reader zijn, de reader niet meer actief is
             using (SQLiteDataReader reader = command.ExecuteReader())
             {
-                //retrieve all tuples that correspond with the query
-                //i will just print the model year
+
                 while (reader.Read())
                 {
-                    Console.WriteLine(reader.GetInt32(reader.GetOrdinal("model_year")));
+                    Console.WriteLine(reader.GetString(reader.GetOrdinal("brand")) + reader.GetInt32(reader.GetOrdinal("qfidf")));
                 }
             }
 
+            SQLiteCommand command2 = new SQLiteCommand(connection);
+            command2.CommandText = @"SELECT COUNT(brand) AS count FROM autompg GROUP BY brand";
+            using (SQLiteDataReader reader2 = command2.ExecuteReader())
+            {
+                while (reader2.Read())
+                {
+                    
+                    Console.WriteLine(reader2.GetInt32(reader2.GetOrdinal("count")));
+                }
+            }
             //we can also perform a sql statement like this
             //the @ is important especially when there are multiple lines
-            command.CommandText = @"SELECT * FROM autompg WHERE model_year = '82' AND type = 'sedan'";
+            //command.CommandText = @"SELECT * FROM autompg WHERE model_year = '82' AND type = 'sedan'";
 
-            using(SQLiteDataReader reader = command.ExecuteReader())
-            {
-                while (reader.Read())
-                {
-                    //print all the brands of the found tuples
-                    Console.WriteLine(reader.GetString(reader.GetOrdinal("brand")));
-                }
-            }
+            //using(SQLiteDataReader reader = command.ExecuteReader())
+            //{
+            //    while (reader.Read())
+            //    {
+            //        //print all the brands of the found tuples
+            //        Console.WriteLine(reader.GetString(reader.GetOrdinal("brand")));
+            //    }
+            //}
 
         }
     }
