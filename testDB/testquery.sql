@@ -1,1 +1,1 @@
-SELECT * FROM qibrand
+SELECT * from autompg WHERE brand = 'volvo'
