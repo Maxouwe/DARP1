@@ -8,7 +8,7 @@ namespace Programma1
     {
         static string metaConnectionString = @"Data Source=..\..\..\db\meta.db;Version=3";
         static string intermediatesConnectionString = @"Data Source=..\..\..\db\intermediates.db;Version=3";
-        static string[] attributes = { "mpg", "cylinders", "displacement", "horsepower", "weight", "acceleration", "model_year", "origin", "brand", "model", "type"};
+        static int numTuples;
 
         static void Main(string[] args)
         {
@@ -18,35 +18,68 @@ namespace Programma1
                 File.Delete(@"..\..\..\db\meta.db");
             }
 
-            //delete intermediate results database als die er nog is
-            if(File.Exists(@"..\..\..\db\intermediates.db"))
-            {
-                File.Delete(@"..\..\..\db\intermediates.db");
-            }
-
             //create the database files
             SQLiteConnection.CreateFile(@"..\..\..\db\meta.db");
-            SQLiteConnection.CreateFile(@"..\..\..\db\intermediates.db");
 
             //make the connections
             SQLiteConnection metaConnection = new SQLiteConnection(metaConnectionString);
-            SQLiteConnection intermediatesConnection = new SQLiteConnection(intermediatesConnectionString);
             metaConnection.Open();
-            intermediatesConnection.Open();
+
 
             //create intermediateresults table
-            createIntermediateTables(intermediatesConnection);
+            createIntermediateTables(metaConnection);
+            
+            //retrieve the amount of tuples in autompg
+            using (SQLiteCommand command = new SQLiteCommand(metaConnection))
+            {
+                command.CommandText = @"SELECT COUNT(*) AS c FROM autompg";
+                using (SQLiteDataReader reader = command.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        numTuples = reader.GetInt32(reader.GetOrdinal("c"));
+                    }
+                }
+            }
+
             //put categorical IDF in the intermediate tables
-            collectCategoricalIDF(intermediatesConnection);
+            collectCategoricalIDF(metaConnection);
             
             //dictionary with the QFs of all attribute values
             //numerical QF are still handled as categorical QFs
-            collectQF(intermediatesConnection);
+            collectQF(metaConnection);
 
+            //retrieve the qf and idf from their tables and fill the qfidf tables inside the metadb
+            using (SQLiteCommand command = new SQLiteCommand(metaConnection))
+            {
+                command.CommandText = File.ReadAllText(@"..\..\..\db\metaload.txt");
+                command.ExecuteNonQuery();
+            }
             
+           
 
+            using (SQLiteCommand command = new SQLiteCommand(metaConnection))
+            {
+                //now we do the same but with a select statement
+                command.CommandText = @"SELECT * FROM brandqfidf";
+
+                //make a reader that will read the db and retrieve the tuples we asked for
+                //de using statment zorgt dat zodra we uit de scope van reader zijn, de reader niet meer actief is
+                using (SQLiteDataReader reader = command.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        Console.WriteLine(reader.GetString(reader.GetOrdinal("brand")) + reader.GetFloat(reader.GetOrdinal("qfidf")));
+                    }
+                }
+            }
         }
 
+        //verwijdert alle tables die gebruikt zijn voor intermediate results
+        static void deleteIntermediateTables(SQLiteConnection connection)
+        {
+
+        }
         //finds all QFs and puts them in the table specified through the connection parameter
         static void collectQF(SQLiteConnection connection)
         {
@@ -111,18 +144,18 @@ namespace Programma1
                     string attribute = pair.Key.Split('=')[0];
                     string attributeValue = pair.Key.Split('=')[1];
                     command.CommandText = String.Format(@"INSERT INTO {0}qf VALUES({1}, {2})", attribute, "\'" + attributeValue + "\'", pair.Value);
-                    Console.WriteLine(command.CommandText);
                     command.ExecuteNonQuery();
                 }
             }
 
 
         }
-
+ 
         static void collectCategoricalIDF(SQLiteConnection connection)
         {
+
             //collect idf for the brand attribute
-            string sqlStatements = @"INSERT INTO brandidf SELECT brand, COUNT(brand) FROM autompg GROUP BY brand";
+            string sqlStatements = String.Format(@"INSERT INTO brandidf SELECT brand, LOG({0}/COUNT(brand)) FROM autompg GROUP BY brand", numTuples);
             using (SQLiteCommand command = new SQLiteCommand(connection))
             {
                 command.CommandText = sqlStatements;
@@ -130,7 +163,7 @@ namespace Programma1
             }
 
             //collect idf for the model attribute
-            sqlStatements = @"INSERT INTO modelidf SELECT model, COUNT(model) FROM autompg GROUP BY model";
+            sqlStatements = String.Format(@"INSERT INTO modelidf SELECT model, LOG({0}/COUNT(model)) FROM autompg GROUP BY model", numTuples);
             using (SQLiteCommand command = new SQLiteCommand(connection))
             {
                 command.CommandText = sqlStatements;
@@ -138,7 +171,7 @@ namespace Programma1
             }
 
             //collect idf for the type attribute
-            sqlStatements = @"INSERT INTO typeidf SELECT type, COUNT(type) FROM autompg GROUP BY type";
+            sqlStatements = String.Format(@"INSERT INTO typeidf SELECT type, LOG({0}/COUNT(type)) FROM autompg GROUP BY type", numTuples);
             using (SQLiteCommand command = new SQLiteCommand(connection))
             {
                 command.CommandText = sqlStatements;

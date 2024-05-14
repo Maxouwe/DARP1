@@ -1,25 +1,25 @@
 /*all qf and idf tables*/
 CREATE TABLE brandidf(
     brand text,
-    idf integer,
+    idf real,
     PRIMARY KEY(brand)
 );
 
 CREATE TABLE modelidf(
     model text,
-    idf integer,
+    idf real,
     PRIMARY KEY(model)
 );
 
 CREATE TABLE typeidf(
     type text,
-    idf integer,
+    idf real,
     PRIMARY KEY(type)
 );
 
 CREATE TABLE brandqf(
     brand text,
-    qd real,
+    qf real,
     PRIMARY KEY(brand)
 );
 
