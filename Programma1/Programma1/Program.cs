@@ -41,17 +41,14 @@ namespace Programma1
             
             //dictionary with the QFs of all attribute values
             //numerical QF are still handled as categorical QFs
-            Dictionary<string, float> dict = collectQF(intermediatesConnection);
+            collectQF(intermediatesConnection);
 
-            foreach (KeyValuePair<string, float> pair in dict)
-            {
-                Console.WriteLine("QF({0}) = {1}", pair.Key, pair.Value);
-            }
+            
 
         }
 
-        //returns the QFs of all attribute values
-        static Dictionary<string, float> collectQF(SQLiteConnection connection)
+        //finds all QFs and puts them in the table specified through the connection parameter
+        static void collectQF(SQLiteConnection connection)
         {
             string[] lines = File.ReadLines(@"..\..\..\db\workload.txt").ToArray();
 
@@ -61,46 +58,37 @@ namespace Programma1
             Dictionary<string, float> RQFs = new Dictionary<string, float>();
 
             //parse all lines
+            //and put it in the dictionary with format ["attribute=value", rqf(value)]
             for (int i = 2; i < lines.Length; i++)
             {
                 if (lines[i] != "")
                 {
-                    //the word/symbol number of the line
-                    int wordIndex = 0;
+                    
+                    string[] line = lines[i].Trim().Split('=');
 
-                    string[] line = lines[i].Trim().Split(' ');
+                    int freq = Int32.Parse(line[0].Split(' ')[0]);
 
-                    int freq = Int32.Parse(line[0]);
-
-                    while (wordIndex < line.Length)
+                    
+                    for(int j = 0; j < line.Length - 1;j++)
                     {
-                        //als het tegengekomen woord een attribuut is 
-                        if (attributes.Contains(line[wordIndex]))
+                        string[] subline = line[j].Trim().Split(' ');
+
+                        string key = subline[subline.Length - 1] + "=" + line[j + 1].Split('\'')[1];
+                        
+
+                        if (RQFs.ContainsKey(key))
                         {
-                            //dont parse the IN clauses
-                            if (line[wordIndex + 1] != "IN")
-                            {
-
-                                string key = line[wordIndex] + " = " + line[wordIndex + 2];
-
-                                if (RQFs.ContainsKey(key))
-                                {
-                                    RQFs[key] = RQFs[key] + freq;
-                                }
-                                else
-                                {
-                                    RQFs[key] = freq;
-                                }
-
-                                if (RQFs[key] > RQFMax)
-                                {
-                                    RQFMax = (int)RQFs[key];
-                                }
-
-                                wordIndex = wordIndex + 2;
-                            }
+                            RQFs[key] = RQFs[key] + freq;
                         }
-                        wordIndex++;
+                        else
+                        {
+                            RQFs[key] = freq;
+                        }
+
+                        if (RQFs[key] > RQFMax)
+                        {
+                            RQFMax = (int)RQFs[key];
+                        }
                     }
                 }
             }
@@ -111,8 +99,24 @@ namespace Programma1
             foreach(KeyValuePair<string, float> pair in RQFs)
             {
                 RQFs[pair.Key] = pair.Value / RQFMax; 
-            }    
-            return RQFs;
+            }
+            //remember despite the dictionary being called RQFs it now contains all the QFs instead
+
+            //insert them into the QF tables
+            using (SQLiteCommand command = new SQLiteCommand(connection))
+            {
+                foreach (KeyValuePair<string, float> pair in RQFs)
+                {
+                    
+                    string attribute = pair.Key.Split('=')[0];
+                    string attributeValue = pair.Key.Split('=')[1];
+                    command.CommandText = String.Format(@"INSERT INTO {0}qf VALUES({1}, {2})", attribute, "\'" + attributeValue + "\'", pair.Value);
+                    Console.WriteLine(command.CommandText);
+                    command.ExecuteNonQuery();
+                }
+            }
+
+
         }
 
         static void collectCategoricalIDF(SQLiteConnection connection)
@@ -144,35 +148,15 @@ namespace Programma1
 
         static void createIntermediateTables(SQLiteConnection connection)
         {
-            //create the autompg table
-            string sqlStatements = File.ReadAllText(@"..\..\..\db\autompg.sql");
             using (SQLiteCommand command = new SQLiteCommand(connection))
             {
+                //create the autompg table
+                string sqlStatements = File.ReadAllText(@"..\..\..\db\autompg.sql");
                 command.CommandText = sqlStatements;
                 command.ExecuteNonQuery();
-            }
 
-            //create brandidf table
-            sqlStatements = @"CREATE TABLE brandidf(brand text, idf integer, PRIMARY KEY(brand));";
-            using (SQLiteCommand command = new SQLiteCommand(connection))
-            {
-                command.CommandText = sqlStatements;
-                command.ExecuteNonQuery();
-            }
-
-            //create modelidf table
-            sqlStatements = @"CREATE TABLE modelidf(model text, idf integer, PRIMARY KEY(model));";
-            using (SQLiteCommand command = new SQLiteCommand(connection))
-            {
-                command.CommandText = sqlStatements;
-                command.ExecuteNonQuery();
-            }
-
-            //create typeidf table
-            sqlStatements = @"CREATE TABLE typeidf(type text, idf integer, PRIMARY KEY(type));";
-            using (SQLiteCommand command = new SQLiteCommand(connection))
-            {
-                command.CommandText = sqlStatements;
+                //create the intermediate results tables
+                command.CommandText = File.ReadAllText(@"..\..\..\db\intermediates.txt");
                 command.ExecuteNonQuery();
             }
         }
