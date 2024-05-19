@@ -1,55 +1,52 @@
 classDiagram
     
-    class Attribute{
-        <<abstract>>
-        -string attributeName
-        +createQFIDFTable()*
-        +removeQFIDFTable()*
-    }
     class NumericalAttribute{
-        -float StandardDeviation
+        -float h
         -float queryValue
+        -string attributeName
+        -int numTuples
         +NumericalAttribute(string attName, float qVal)
         -createIDFScoreTable()
+        +createQFIDFTable()
         -calcIDF()
     }
 
     class CategoricalAttribute{
         -string queryValue
+        -string attributeName
         +CategoricalAttribute(string attName, string qVal)
     }
 
     class Query{
-        -List<Attribute> queryTerms
-        +addAttribute(Attribute a)
+        +List<NumericalAttribute> numTerms
+        +List<CategoricalAttribute> catTerms
+        +createTables()
+        +removeTables()
         +Query()
+    }
+
+    class QueryProcessor{
+        -Query query
+        -int k
+        +QueryProcessor()
         -createQFIDFAnswerTuplesTable()
-        -createQFIDFZeroAnswerTuplesTable()
-        +PrintTopK()
+        -leavOutType()
+        -addMargins()
+        -increaseMargins()
+        -searchJustByBrand()
+        -searchJustByModel()
+        -searchJustByWeakenedNumericalConstraints()
+        -searchByEnvironmentFunction()
+        -leaveOutModel()
+        -joinTables()
+        +findTopK()
     }
-
     class Program{
-
+        +QueryProcessor queryprocessor
     }
 
-    Program <.. Query
-    Query o-- Attribute
-    Attribute <|.. NumericalAttribute
-    Attribute <|.. CategoricalAttribute
-
-Program class:
--main function
--instantiates and uses an object of query
--processes the input from the console
--outputs the topk
-
-Query class:
--has a list of query terms that correspond with the given query
--printtopk can my called externally
--in printtopk createQFIDFTable of every attribute object is being called and also removeQFIDFTable after the query is finished
--in printopk first it will try create the table that should contain the tuples based on QFIDF
--if that table is empty it will create a new table that contains tuples based on more lenient QFIDF similarity(T.B.D.)
-
--for many answers eis dat elke attribuut waarde gelijk is
--voor zero answers het is ok als attribuut waarde niet gelijk is en kijk gewoon naar de tuples met de hoogste QFIDF similarity
+    Program <.. QueryProcessor
+    QueryProcessor <.. Query
+    Query o-- NumericalAttribute
+    Query o-- CategoricalAttribute
 
