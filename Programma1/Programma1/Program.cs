@@ -8,7 +8,7 @@ namespace Programma1
 {
     internal class Program
     {
-        static string metaConnectionString = @"Data Source=..\..\..\db\meta.db;Version=3";
+        static string metaConnectionString = @"Data Source=..\..\..\..\..\db\meta.db;Version=3";
         static int numTuples;
 
         //delegate function type that we can use as callback function for reading tuples from a table
@@ -17,20 +17,20 @@ namespace Programma1
         static void Main(string[] args)
         {
             //delete metadatabase als die er nog is van een vorige keer
-            if (File.Exists(@"..\..\..\db\meta.db"))
+            if (File.Exists(@"..\..\..\..\..\db\meta.db"))
             {
-                File.Delete(@"..\..\..\db\meta.db");
+                File.Delete(@"..\..\..\..\..\db\meta.db");
             }
 
             //create the database files
-            SQLiteConnection.CreateFile(@"..\..\..\db\meta.db");
+            SQLiteConnection.CreateFile(@"..\..\..\..\..\db\meta.db");
 
             //make a connection with the database
             SQLiteConnection metaConnection = new SQLiteConnection(metaConnectionString);
             metaConnection.Open();
 
-            //put autompg table into the metadb
-            executeSQL(metaConnection, File.ReadAllText(@"..\..\..\db\autompg.sql"));
+            //put the filled autompg table into the metadb
+            executeSQL(metaConnection, File.ReadAllText(@"..\..\..\..\..\db\autompg.sql"));
 
             //count the amount of tuples in autompg
             readTuples(metaConnection, 
@@ -41,35 +41,45 @@ namespace Programma1
                 }
                 );
             
-            //put all qf and idf tables in the metadb
-            executeSQL(metaConnection, File.ReadAllText(@"..\..\..\db\metadb.txt"));
+            //create all qf and idf tables in the metadb
+            //categorical attributes get both qf and idf tables, while numerical attributes only qf
+            //because we will do the idf calculations for them at query time
+            //also creates the bandwidth tables
+            executeSQL(metaConnection, File.ReadAllText(@"..\..\..\..\..\db\metadb.txt"));
 
             //put categorical IDF in the idf tables
             collectCategoricalIDF(metaConnection);
             
             //calculate all QF values from the workload
-            //numerical QF are still handled as categorical QFs
             collectQF(metaConnection);
 
             //retrieve the qf and idf from their tables and fill the qfidf tables inside the metadb
-            executeSQL(metaConnection, File.ReadAllText(@"..\..\..\db\metaload.txt"));
+            //again: only categorical attributes will have a qfidf table because the idf of numerical attributes is not known yet
+            executeSQL(metaConnection, File.ReadAllText(@"..\..\..\..\..\db\metaload.txt"));
 
-            //use qf and idf for categorical attributes
-            //use qf for exact numerical values
-            //calculate idf at query time
+            //calculate all h values and put them in the table "attributebandwidth"
+            calcBandwidthH(metaConnection, "mpg");
+            calcBandwidthH(metaConnection, "cylinders");
+            calcBandwidthH(metaConnection, "displacement");
+            calcBandwidthH(metaConnection, "horsepower");
+            calcBandwidthH(metaConnection, "weight");
+            calcBandwidthH(metaConnection, "acceleration");
+            calcBandwidthH(metaConnection, "model_year");
+            calcBandwidthH(metaConnection, "origin");
 
-            readTuples(metaConnection,
-                @"SELECT * FROM displacementqf",
-                delegate (SQLiteDataReader reader)
-                {
-                    Console.WriteLine(reader.GetFloat(reader.GetOrdinal("displacement")) + "=" + reader.GetFloat(reader.GetOrdinal("qf")));
-                });
+            //delete all tables that were used for intermediate results 
+            executeSQL(metaConnection, @"DROP TABLE brandidf");
+            executeSQL(metaConnection, @"DROP TABLE modelidf");
+            executeSQL(metaConnection, @"DROP TABLE typeidf");
+            executeSQL(metaConnection, @"DROP TABLE brandqf");
+            executeSQL(metaConnection, @"DROP TABLE modelqf");
+            executeSQL(metaConnection, @"DROP TABLE typeqf");
         }
 
         //finds all QFs and puts them in the table specified through the connection parameter
         static void collectQF(SQLiteConnection connection)
         {
-            string[] lines = File.ReadLines(@"..\..\..\db\workload.txt").ToArray();
+            string[] lines = File.ReadLines(@"..\..\..\..\..\db\workload.txt").ToArray();
 
             float RQFMax = 0;
 
@@ -78,6 +88,8 @@ namespace Programma1
 
             //parse all lines
             //and put it in the dictionary with format ["attribute=value", rqf(value)]
+            //for each attribute value v: if we find v in an AND clause we add the number(foud at the beginning of the line) to rqf(v)
+            //at the same time we keep track of the current rqfmax
             for (int i = 2; i < lines.Length; i++)
             {
                 if (lines[i] != "")
@@ -125,7 +137,6 @@ namespace Programma1
             fillQFTable(connection, "acceleration", RQFs, RQFMax);
             fillQFTable(connection, "model_year", RQFs, RQFMax);
             fillQFTable(connection, "origin", RQFs, RQFMax);
-
         }
 
         //fill QF table for attribute based on the RQF and RQFMax
@@ -157,17 +168,10 @@ namespace Programma1
                 );
         }
         
-        //calc standard deviation for an attribute
-        static float calcStandardDeviation(SQLiteConnection connection, string attribute)
+        //calc the h value in the idf numerical attribute score function and put them in a table
+        static void calcBandwidthH(SQLiteConnection connection, string attribute)
         {
-            float sigma = 0;
-            readTuples(connection,
-                String.Format(@"SELECT STDEV({0}) AS stdev FROM autompg", attribute),
-                delegate (SQLiteDataReader reader)
-                {
-                    sigma = reader.GetFloat(reader.GetOrdinal("stdev"));
-                });
-            return sigma;
+            executeSQL(connection, String.Format(@"INSERT INTO {0}bandwidth SELECT 1.06*STDEV({0})*POWER({1}, -0.2) AS bandwidth FROM autompg", attribute, numTuples));
         }
 
         static void collectCategoricalIDF(SQLiteConnection connection)

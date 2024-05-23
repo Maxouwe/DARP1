@@ -44,9 +44,14 @@ classDiagram
     class Program{
         +QueryProcessor queryprocessor
     }
-
+    class SQLiteUtilities{
+        +delegate readFunc(SQLiteDataReader reader)
+        +executeSQL(SQLiteConnection connection, string sqlStatements)
+        +readTuples(SQLite connection, string sqlStatement, readFunc f)
+    }
     Program <.. QueryProcessor
     QueryProcessor <.. Query
     Query o-- NumericalAttribute
     Query o-- CategoricalAttribute
+    NumericalAttribute ..> SQLiteUtilities
 

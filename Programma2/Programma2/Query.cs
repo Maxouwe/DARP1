@@ -27,11 +27,17 @@ namespace Programma2
         public void createTables(SQLiteConnection connection)
         {
             //the categorical QFIDF tables are already in the metadb, so just call the methods for creating the numerical QFIDF tables 
-            //for the QFIDF numerical tables call the necessary methods from the numericalattribute class
+            foreach (NumericalAttribute term in numTerms)
+            {
+                term.createQFIDFTable(connection);
+            }
         }
         public void removeTables(SQLiteConnection connection)
         {
-
+            foreach(NumericalAttribute term in numTerms)
+            {
+                term.deleteTables(connection);
+            }
         }
     }
 }

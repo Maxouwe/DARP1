@@ -28,7 +28,8 @@ namespace Programma2
         //they are joined on the autompg.attribute = qfidftable.attribute
         private void createQFIDFAnswerTuplesTable(SQLiteConnection connection)
         {
-            //invoke _query.createTables()
+            _query.createTables(connection);
+
             //join them and select all tuples where all attributes=queryterms
         }
 
@@ -36,7 +37,7 @@ namespace Programma2
         //is put together in this function
         private void joinTables(SQLiteConnection connection)
         {
-
+            
         }
         //remove the constraint that type = queryValue
         private void leaveOutType(SQLiteConnection connection)

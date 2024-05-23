@@ -1,1 +1,0 @@
-SELECT * from autompg WHERE brand = 'volvo'
