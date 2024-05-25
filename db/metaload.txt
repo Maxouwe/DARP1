@@ -17,7 +17,9 @@ CREATE TABLE typeqfidf(
     PRIMARY KEY(type)
 );
 
-
+INSERT INTO numtuples
+SELECT COUNT(*)
+FROM autompg;
 
 INSERT INTO brandqfidf
 SELECT brandqf.brand, brandqf.qf*brandidf.idf
@@ -36,3 +38,4 @@ SELECT typeqf.type, typeqf.qf*typeidf.idf
 FROM typeqf
 INNER JOIN typeidf
 ON typeqf.type = typeidf.type;
+

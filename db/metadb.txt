@@ -114,3 +114,8 @@ CREATE TABLE model_yearbandwidth(
 CREATE TABLE originbandwidth(
     bandwidth real
 );
+
+
+CREATE TABLE numtuples(
+    num integer
+);

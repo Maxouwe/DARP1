@@ -26,8 +26,11 @@ namespace Programma2
                 delegate (SQLiteDataReader reader)
                 {
                     this.h = reader.GetFloat(reader.GetOrdinal("bandwidth"));
+                    Console.WriteLine(attributeName + "=" + h);
                 }
-                ); 
+                );
+            
+          
         }
         
         //creates and fills an QFIDF score table for each attribute, and puts them in the database
@@ -55,7 +58,7 @@ namespace Programma2
         //we drop de idf and qfidf tables because they are different for each query
         public void deleteTables(SQLiteConnection connection)
         {
-            SQLiteUtilities.executeSQL(connection, String.Format(@"DROP TABLE {0}idf; DROP TABLE {0}qfidf", attributeName));
+            SQLiteUtilities.executeSQL(connection, String.Format(@"DROP TABLE IF EXISTS {0}idf; DROP TABLE IF EXISTS {0}qfidf", attributeName));
         }
 
         //using calcTermIDF as IDF(q), calculate the IDFSimilarityTable
@@ -82,11 +85,19 @@ namespace Programma2
         private float calcTermIDF(SQLiteConnection connection)
         {
             float idfq = 0;
+            
             SQLiteUtilities.readTuples(connection, 
                 String.Format(@"SELECT LOG({0}/SUM( EXP(-0.5 * POW( (val-{2})/{3} , 2 ) ) ) ) AS idfq FROM (SELECT DISTINCT {1} AS val FROM autompg)", _numTuples, attributeName, queryValue, h),
                 delegate (SQLiteDataReader reader)
                 {
-                    idfq = reader.GetFloat(reader.GetOrdinal("idfq"));
+                    try
+                    {
+                        idfq = reader.GetFloat(reader.GetOrdinal("idfq"));
+                    }
+                    catch
+                    {
+                        Console.WriteLine("please dont supply absurdly small or big values for a certain attribute");
+                    }
                 });
             return idfq;
         }
@@ -103,3 +114,4 @@ namespace Programma2
         }
     }
 }
+
