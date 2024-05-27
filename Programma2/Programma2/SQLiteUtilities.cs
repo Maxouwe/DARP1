@@ -15,31 +15,42 @@ namespace Programma2
 
         //execute the sql statements from given by the string
         //using the db file signified by the dbConnection
-        public static void executeSQL(SQLiteConnection dbConnection, string sqlStatements)
+        public static void executeSQL(string connectionString, string sqlStatements)
         {
-            using (SQLiteCommand command = new SQLiteCommand(dbConnection))
+            using(SQLiteConnection connection = new SQLiteConnection(connectionString))
             {
-                command.CommandText = sqlStatements;
-                command.ExecuteNonQuery();
+                connection.Open();
+                using (SQLiteCommand command = new SQLiteCommand(connection))
+                {
+                    command.CommandText = sqlStatements;
+                    command.ExecuteNonQuery();
+                }
+                connection.Close();
             }
+            
         }
-
+        
         //reads tuples from a database 
         //sqlStatement should be a SELECT statement
         //supply a delegate function to decide what to do with each tuple
-        public static void readTuples(SQLiteConnection dbConnection, string sqlStatement, readFunc f)
+        public static void readTuples(string connectionString, string sqlStatement, readFunc f)
         {
-            using (SQLiteCommand command = new SQLiteCommand(dbConnection))
+            using (SQLiteConnection connection = new SQLiteConnection(connectionString))
             {
-                command.CommandText = sqlStatement;
-                using (SQLiteDataReader reader = command.ExecuteReader())
+                connection.Open();
+                using (SQLiteCommand command = new SQLiteCommand(connection))
                 {
-                    //for each found tuple perform the callback function f
-                    while (reader.Read())
+                    command.CommandText = sqlStatement;
+                    using (SQLiteDataReader reader = command.ExecuteReader())
                     {
-                        f(reader);
+                        //for each found tuple perform the callback function f
+                        while (reader.Read())
+                        {
+                            f(reader);
+                        }
                     }
                 }
+                connection.Close();
             }
         }
     }

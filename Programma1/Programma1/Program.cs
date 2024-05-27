@@ -74,6 +74,8 @@ namespace Programma1
             executeSQL(metaConnection, @"DROP TABLE brandqf");
             executeSQL(metaConnection, @"DROP TABLE modelqf");
             executeSQL(metaConnection, @"DROP TABLE typeqf");
+
+            metaConnection.Close();
         }
 
         //finds all QFs and puts them in the table specified through the connection parameter

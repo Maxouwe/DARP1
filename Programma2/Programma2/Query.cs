@@ -24,19 +24,19 @@ namespace Programma2
         //           -for that attribute value
         //           -for the qfidf similarity score for that attribute value t and the value specified in the query q
         //where qfidfsimilarity(t, q) = qfsimilarity(t, q) * idfsimilarity(t, q)
-        public void createTables(SQLiteConnection connection)
+        public void createTables(string connectionString)
         {
             //the categorical QFIDF tables are already in the metadb, so just call the methods for creating the numerical QFIDF tables 
             foreach (NumericalAttribute term in numTerms)
             {
-                term.createQFIDFTable(connection);
+                term.createQFIDFTable(connectionString);
             }
         }
-        public void removeTables(SQLiteConnection connection)
+        public void removeTables(string connectionString)
         {
             foreach(NumericalAttribute term in numTerms)
             {
-                term.deleteTables(connection);
+                term.deleteTables(connectionString);
             }
         }
     }
