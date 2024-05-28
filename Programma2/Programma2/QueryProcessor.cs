@@ -17,16 +17,18 @@ namespace Programma2
     //weaken the constraints if zero answers/not enough answers
     class QueryProcessor
     {
-        public Query _query;
+        private Query _query;
         private int _k;
+        private string connectionString;
 
-        public QueryProcessor(Query query, int k)
+        public QueryProcessor(Query query, int k, string connectionString)
         {
             _query = query;
-            _k = k; 
+            _k = k;
+            this.connectionString = connectionString;
         }
 
-        public void deleteTables(string connectionString)
+        public void deleteTables()
         {
             _query.removeTables(connectionString);
             SQLiteUtilities.executeSQL(connectionString, @"DROP TABLE IF EXISTS allqfidf; DROP TABLE IF EXISTS topk;");
@@ -34,18 +36,18 @@ namespace Programma2
         //create a table where all qfidf score tables are joined together with the autompg table
         //they are joined on the autompg.attribute = qfidftable.attribute
         
-        private void createQFIDFAnswerTuplesTable(string connectionString)
+        private void createTuplesWithQFIDFScoreTable()
         {
             _query.createTables(connectionString);
 
             //join them and select all tuples where all attributes=queryterms
             //they are put into a table called resulttable
-            joinTables(connectionString);
+            joinTables();
         }
 
         //the code for joining of tables done in createQFIDFAnswerTuplesTable()
         //is put together in this function
-        private void joinTables(string connectionString)
+        private void joinTables()
         {
             //create the string that will hold all the attributes columns + the columns for all the qfidf of the attributes mentioned in the query
             //using select * produces duplicate columns, so we have to mention each individual column
@@ -96,7 +98,7 @@ namespace Programma2
         }
 
         //get the amount of tuples in topk
-        private int getCountTopk(string connectionString)
+        private int getCountTopk()
         {
             int count = 0;
             SQLiteUtilities.readTuples(connectionString, @"SELECT COUNT(*) AS c FROM topk",
@@ -113,14 +115,14 @@ namespace Programma2
         //incase we get alot of tuples with the same qfidf
         //the additional ranking function is horsepower*3 + acceleration*40 + mpg*30 + model_year * 30
         //this function is explained in the supplied explanation text file
-        private void additionalRanking(string connectionString)
+        private void additionalRanking()
         {
-            replaceTopkTable(connectionString, String.Format(@"SELECT *, (horsepower*3 + acceleration*40 + mpg*30 + model_year * 30) AS additionalranking FROM topk ORDER BY horsepower*3 + acceleration*40 + mpg*30 + model_year * 30 DESC LIMIT {0}", _k));
+            replaceTopkTable(String.Format(@"SELECT *, (horsepower*3 + acceleration*40 + mpg*30 + model_year * 30) AS additionalranking FROM topk ORDER BY horsepower*3 + acceleration*40 + mpg*30 + model_year * 30 DESC LIMIT {0}", _k));
         }
 
         //instead of searching for tuples where the numerical attributes are exactly equal to the queryvalues
         //we add margins: select where A-m*h =< q =< A + m*h  (A is the attribute, h is the h parameter of that attribute)
-        private void addMargins(string connectionString, int m, bool repeated)
+        private void addMargins(int m, bool repeated)
         {
             string columnNames = "allqfidf.id, allqfidf.mpg, allqfidf.cylinders, allqfidf.displacement, allqfidf.horsepower, allqfidf.weight, allqfidf.acceleration, allqfidf.model_year, allqfidf.origin, allqfidf.brand, allqfidf.model, allqfidf.type";
             string ceq = "";
@@ -161,25 +163,26 @@ namespace Programma2
                 columnNames += sumQFIDFColumn;
             }
 
-            replaceTopkTable(connectionString, String.Format(@"SELECT {0} FROM allqfidf WHERE {1} ORDER BY sumqfidf DESC LIMIT {2}", columnNames, ceq, _k));
+            replaceTopkTable(String.Format(@"SELECT {0} FROM allqfidf WHERE {1} ORDER BY sumqfidf DESC LIMIT {2}", columnNames, ceq, _k));
 
             //if we found enough tuples then we are finished
-            if (getCountTopk(connectionString) == _k)
+            if (getCountTopk() == _k)
             {
                 return;
             }
             //if theres still too little tuples and weve only checked once with margins, then we increase margins
             else if(!repeated)
             {
-                addMargins(connectionString, 8, true);
+                addMargins(8, true);
             }
             //if therese still too little tuples and weve already increased the margins we check by brand
             else
             {
-                searchAttributeAndMargins(connectionString);
+                searchAttributeAndMargins();
             }
         }
-        private void searchAttributeAndMargins(string connectionString)
+        //is used to decide if we can search by just Brand and margins, type and margins, or both.
+        private void searchAttributeAndMargins()
         {
             bool queryContainsBrand = false;
             CategoricalAttribute brand = null;
@@ -205,41 +208,41 @@ namespace Programma2
             {
                 if(_query.numTerms.Count > 0)
                 {
-                    searchJustByBrandAndMargins(connectionString, brand, type, 4);
+                    searchJustByBrandAndMargins(brand, type, 4);
                 }
                 else
                 {
-                    searchJustByBrand(connectionString, brand, type);
+                    searchJustByBrand(brand, type);
                 }
             }
             else if(queryContainsType)
             {
                 if(_query.numTerms.Count > 0)
                 {
-                    searchJustByTypeAndMargins(connectionString, type, 4);
+                    searchJustByTypeAndMargins( type, 4);
                 }
                 else
                 {
-                    searchJustByType(connectionString, type);
+                    searchJustByType(type);
                 }
             }
             //if neither brand or type are specified then search by just margins
             else if(_query.numTerms.Count > 0)
             {
-                searchJustByMargins(connectionString, 4);
+                searchJustByMargins(4);
             }
             //if there are no numerical specifications then we just return a topk determined by our personal ranking function
             else
             {
-                replaceTopkTable(connectionString, @"SELECT * FROM allqfidf");
+                replaceTopkTable( @"SELECT * FROM allqfidf");
 
                 //and rank the topk with our personal function
-                additionalRanking(connectionString);
+                additionalRanking();
                 return;
             }
         }
         //search by a single categorical attribute and numerical contraints with margins m*h
-        private void searchJustByBrandAndMargins(string connectionString, CategoricalAttribute? brand, CategoricalAttribute? type, int m)
+        private void searchJustByBrandAndMargins(CategoricalAttribute? brand, CategoricalAttribute? type, int m)
         {
             string columnNames = "allqfidf.id, allqfidf.mpg, allqfidf.cylinders, allqfidf.displacement, allqfidf.horsepower, allqfidf.weight, allqfidf.acceleration, allqfidf.model_year, allqfidf.origin, allqfidf.brand, allqfidf.model, allqfidf.type";
             string ceq = String.Format("{0} = {1} AND ", brand.attributeName, brand.queryValue);
@@ -263,26 +266,26 @@ namespace Programma2
             sumQFIDFColumn += ") AS sumqfidf";
             columnNames += sumQFIDFColumn;
 
-            replaceTopkTable(connectionString, String.Format(@"SELECT {0} FROM allqfidf WHERE {1} ORDER BY sumqfidf DESC LIMIT {2}", columnNames, ceq, _k));
+            replaceTopkTable( String.Format(@"SELECT {0} FROM allqfidf WHERE {1} ORDER BY sumqfidf DESC LIMIT {2}", columnNames, ceq, _k));
 
-            if (getCountTopk(connectionString) == _k)
+            if (getCountTopk() == _k)
             {
                 return;
             }
             //not enought tuples and if type is specified, then try to search by just type
             else if (type != null)
             {
-                searchJustByTypeAndMargins(connectionString, type, 4);
+                searchJustByTypeAndMargins(type, 4);
             }
             //else try to search by just brand
             else
             {
-                searchJustByBrand(connectionString, brand, type);
+                searchJustByBrand( brand, type);
             }
             
         }
         //search by a single categorical attribute and numerical contraints with margins m*h
-        private void searchJustByTypeAndMargins(string connectionString, CategoricalAttribute? type, int m)
+        private void searchJustByTypeAndMargins(CategoricalAttribute? type, int m)
         {
             string columnNames = "allqfidf.id, allqfidf.mpg, allqfidf.cylinders, allqfidf.displacement, allqfidf.horsepower, allqfidf.weight, allqfidf.acceleration, allqfidf.model_year, allqfidf.origin, allqfidf.brand, allqfidf.model, allqfidf.type";
             string ceq = String.Format("{0} = {1} AND ", "type", type.queryValue);
@@ -306,85 +309,85 @@ namespace Programma2
             sumQFIDFColumn += ") AS sumqfidf";
             columnNames += sumQFIDFColumn;
 
-            replaceTopkTable(connectionString, String.Format(@"SELECT {0} FROM allqfidf WHERE {1} ORDER BY sumqfidf DESC LIMIT {2}", columnNames, ceq, _k));
+            replaceTopkTable( String.Format(@"SELECT {0} FROM allqfidf WHERE {1} ORDER BY sumqfidf DESC LIMIT {2}", columnNames, ceq, _k));
 
             
-            if (getCountTopk(connectionString) == _k)
+            if (getCountTopk() == _k)
             {
                 return;
             }
             //too little and type is specified? then try to search by just type
             else
             {
-                searchJustByType(connectionString, type);
+                searchJustByType( type);
             }
         }
         //search by a single categorical attribute and numerical contraints with margins m*h
-        private void searchJustByBrand(string connectionString, CategoricalAttribute? brand, CategoricalAttribute? type)
+        private void searchJustByBrand(CategoricalAttribute? brand, CategoricalAttribute? type)
         {
             string columnNames = "allqfidf.id, allqfidf.mpg, allqfidf.cylinders, allqfidf.displacement, allqfidf.horsepower, allqfidf.weight, allqfidf.acceleration, allqfidf.model_year, allqfidf.origin, allqfidf.brand, allqfidf.model, allqfidf.type";
             string ceq = String.Format("{0} = {1}", "brand", brand.queryValue);
 
-            replaceTopkTable(connectionString, String.Format(@"SELECT {0} FROM allqfidf WHERE {1}", columnNames, ceq));
+            replaceTopkTable( String.Format(@"SELECT {0} FROM allqfidf WHERE {1}", columnNames, ceq));
 
             //if there are too many tuples for this brand then add additional ranking
-            if (getCountTopk(connectionString) >= _k)
+            if (getCountTopk() >= _k)
             {
-                additionalRanking(connectionString);
+                additionalRanking();
                 return;
             }
             //if type is specified, then try to search by just type
             else if (type != null)
             {
-                searchJustByType(connectionString, type);
+                searchJustByType( type);
             }
             //else try to search by just by margins, but we need atleast one specified numerical attribute
             else if (_query.numTerms.Count > 0)
             {
-                searchJustByMargins(connectionString, 4);
+                searchJustByMargins( 4);
             }
             //if not then we just search by our personal function
             else
             {
                 //get all cars
-                replaceTopkTable(connectionString, @"SELECT * FROM allqfidf");
+                replaceTopkTable( @"SELECT * FROM allqfidf");
 
                 //and rank the topk with our personal function
-                additionalRanking(connectionString);
+                additionalRanking();
                 return;
             }
         }
 
-        private void searchJustByType(string connectionString, CategoricalAttribute? type)
+        private void searchJustByType(CategoricalAttribute? type)
         {
             string columnNames = "allqfidf.id, allqfidf.mpg, allqfidf.cylinders, allqfidf.displacement, allqfidf.horsepower, allqfidf.weight, allqfidf.acceleration, allqfidf.model_year, allqfidf.origin, allqfidf.brand, allqfidf.model, allqfidf.type";
             string ceq = String.Format("{0} = {1}", "type", type.queryValue);
 
-            replaceTopkTable(connectionString, String.Format(@"SELECT {0} FROM allqfidf WHERE {1}", columnNames, ceq));
+            replaceTopkTable(String.Format(@"SELECT {0} FROM allqfidf WHERE {1}", columnNames, ceq));
 
             //if there are too many tuples after weakening then add additional ranking
-            if (getCountTopk(connectionString) >= _k)
+            if (getCountTopk() >= _k)
             {
-                additionalRanking(connectionString);
+                additionalRanking();
                 return;
             }
             //if theres still too little tuples try to search by just margins, but there has to be atleast one numerical attribute specified
             else if(_query.numTerms.Count >0)
             {
-                searchJustByMargins(connectionString, 4);
+                searchJustByMargins(4);
             }
             //if not then we just search by our personal function
             else
             {
                 //get all cars
-                replaceTopkTable(connectionString, @"SELECT * FROM allqfidf");
+                replaceTopkTable( @"SELECT * FROM allqfidf");
 
                 //and rank the topk with our personal function
-                additionalRanking(connectionString);
+                additionalRanking();
                 return;
             }
         }
-        private void searchJustByMargins(string connectionString, int m)
+        private void searchJustByMargins(int m)
         {
             string columnNames = "allqfidf.id, allqfidf.mpg, allqfidf.cylinders, allqfidf.displacement, allqfidf.horsepower, allqfidf.weight, allqfidf.acceleration, allqfidf.model_year, allqfidf.origin, allqfidf.brand, allqfidf.model, allqfidf.type";
             string ceq = "";
@@ -408,10 +411,10 @@ namespace Programma2
             sumQFIDFColumn += ") AS sumqfidf";
             columnNames += sumQFIDFColumn;
 
-            replaceTopkTable(connectionString, String.Format(@"SELECT {0} FROM allqfidf WHERE {1} ORDER BY sumqfidf DESC LIMIT {2}", columnNames, ceq, _k));
+            replaceTopkTable(String.Format(@"SELECT {0} FROM allqfidf WHERE {1} ORDER BY sumqfidf DESC LIMIT {2}", columnNames, ceq, _k));
 
             
-            if (getCountTopk(connectionString) == _k)
+            if (getCountTopk() == _k)
             {
                 return;
             }
@@ -419,10 +422,10 @@ namespace Programma2
             else
             {
                 //get all cars
-                replaceTopkTable(connectionString, @"SELECT * FROM allqfidf");
+                replaceTopkTable(@"SELECT * FROM allqfidf");
 
                 //and rank the topk with our personal function
-                additionalRanking(connectionString);
+                additionalRanking();
                 return;
             }
         }
@@ -431,16 +434,16 @@ namespace Programma2
 
         //completely repopulates the topk table
         //based on the given select statement
-        private void replaceTopkTable(string connectionString, string selectStatement)
+        private void replaceTopkTable(string selectStatement)
         {
             //create temp table with topk, drop the topk table, create the topk table filled with the new topk, then delete the temporary table
             SQLiteUtilities.executeSQL(connectionString, String.Format(@"CREATE TABLE temp AS {0}; DROP TABLE topk; CREATE TABLE topk AS SELECT * FROM temp; DROP TABLE temp", selectStatement));
         }
          
-        public void findTopK(string connectionString)
+        public void findTopK()
         {
             //create the autompg table joined with all the qfidf tables
-            createQFIDFAnswerTuplesTable(connectionString);
+            createTuplesWithQFIDFScoreTable();
 
             string columnNames = "allqfidf.id, allqfidf.mpg, allqfidf.cylinders, allqfidf.displacement, allqfidf.horsepower, allqfidf.weight, allqfidf.acceleration, allqfidf.model_year, allqfidf.origin, allqfidf.brand, allqfidf.model, allqfidf.type";
             string ceq = "";
@@ -486,9 +489,9 @@ namespace Programma2
 
             //if we get many tuples at first this means we have more than k tuples with the same score(because all found tuples have satisfied all the attribute = queryvalue constraints)
             //so we will apply additional ranking
-            if(getCountTopk(connectionString) >= _k)
+            if(getCountTopk() >= _k)
             {
-                additionalRanking(connectionString);
+                additionalRanking();
                 return;
             }
 
@@ -512,7 +515,7 @@ namespace Programma2
             else
             {
                 //change numerical where clause to WHERE A-4*h<=q<=A+4*h
-                addMargins(connectionString, 4, false);
+                addMargins(4, false);
             }
         }
     }
